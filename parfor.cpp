@@ -13,11 +13,11 @@ struct LOs {
     buf = sycl::malloc_device<int>(len,policy);
     n=len;
   }
-//  //- non-default copy ctor trips the trait asserts
-//  //- with this defined the device-to-host copy executes
-//  //  but the contents are incorrect
-//  LOs(const LOs&) {
-//  }
+  //non-default copy ctor trips the trait asserts
+  LOs(const LOs& b) {
+    buf = b.buf;
+    n = b.n;
+  }
   int& operator[](int i) const {
     return buf[i];
   }
