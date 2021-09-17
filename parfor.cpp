@@ -13,7 +13,7 @@ struct LOs {
     buf = sycl::malloc_device<int>(len,policy);
     n=len;
   }
-  //non-default copy ctor is not ok
+  //non-default copy ctor trips the trait asserts
   LOs(const LOs&) {
   }
   int& operator[](int i) const {
@@ -30,9 +30,11 @@ static_assert(std::is_trivially_copy_assignable<T>::value, name " is not trivial
 static_assert(std::is_standard_layout<T>::value, name " is not in the standard layout"); \
 static_assert(std::is_trivially_copyable<T>::value, name " is not trivially_copyable"); \
 
+//uncomment the following to see which traits are not satisfied
 //checkType(LOs, "LOs");
 #undef checkType
 
+//borrowed from Kokkos core/src/SYCL/Kokkos_SYCL_Instance.hpp:
 template <typename T>
 T& copy_from(const T& t, sycl::queue& q) {
   auto policy = oneapi::dpl::execution::dpcpp_default;
@@ -57,6 +59,8 @@ void check(sycl::queue& q, LOs& a) {
   free(bufH);
 }
 
+//TODO: fix memory leaks - see 
+//  https://github.com/pvelesko/SYCL_Tutorials/blob/master/Porting%20Object%20Oriented%20Code%20to%20USM.md#destructor
 int main() {
   const int n=1024;
   auto policy = oneapi::dpl::execution::dpcpp_default;
@@ -70,17 +74,6 @@ int main() {
   };
 
   sycl::queue q; //uses default
-//  try {
-//    q.submit([&](sycl::handler& h) {
-//      h.parallel_for<class foo>( sycl::range<1>{n}, answer);
-//    }); 
-//    q.wait();
-//  } catch (sycl::exception & e) {
-//    std::cout << e.what() << std::endl;
-//    return 1;
-//  }   
-//  check(q,a);
-
   const auto functor = copy_from(answer,q);
   try {
     q.submit([&](sycl::handler& h) {
@@ -92,17 +85,5 @@ int main() {
     return 1;
   }
 
-  //try {
-  //  sycl::free(buf,q);
-  //  //uncommenting the sycl::free(...) call results in the following runtime error
-  //  //  libc++abi: terminating with uncaught exception of type
-  //  //  UsmAllocationException
-  //  //  Aborted
-  //  //I think this is discussed here:
-  //  //https://github.com/pvelesko/SYCL_Tutorials/blob/master/Porting%20Object%20Oriented%20Code%20to%20USM.md#destructor
-  //} catch (sycl::exception & e) {
-  //  std::cout << e.what() << std::endl;
-  //  return 1;
-  //}   
   return 0;
 }
